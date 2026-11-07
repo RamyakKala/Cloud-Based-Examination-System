@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block title %}{{ exam.title }} | AetherExam{% endblock %}
+{% block body_class %}exam-page{% endblock %}
+{% block content %}
+<div class="page-head split">
+    <div>
+        <span class="eyebrow">Assessment in progress</span>
+        <h1>{{ exam.title }}</h1>
+        {% if exam.description %}<p class="quiz-instructions">{{ exam.description }}</p>{% endif %}
+    </div>
+    <div class="timer-box" id="timer-box" role="timer" aria-live="off" aria-label="Time remaining">
+        <span class="timer-label">Time Remaining</span>
+        <strong id="countdown">--:--:--</strong>
+    </div>
+</div>
+
+<div class="exam-meta">
+    <span>{{ ordered_questions|length }} questions</span>
+    <span>Duration: {{ exam.duration_minutes or 0 }} minutes</span>
+    {% if exam.end_at %}<span>Scheduled close: {{ exam.end_at.astimezone(IST).strftime('%d %b %Y, %H:%M IST') }}</span>{% endif %}
+    <span id="autosave-status" class="save-status" role="status" aria-live="polite">All changes saved</span>
+</div>
+
+<form id="exam-form" class="exam-layout" method="POST" action="{{ url_for('submit_exam', exam_id=exam.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="exam-main">
+        {% for q in ordered_questions %}
+        <fieldset class="question-card question-set" id="question-card-{{ loop.index }}" data-question-index="{{ loop.index0 }}">
+            <legend>Question {{ loop.index }} of {{ ordered_questions|length }}</legend>
+            <p class="question-prompt">{{ q.text }}</p>
+            <label class="option"><input type="radio" name="question_{{ q.id }}" value="A" {% if answer_map.get(q.id) and answer_map[q.id].selected_option == 'A' %}checked{% endif %}> <span>A. {{ q.option_a }}</span></label>
+            <label class="option"><input type="radio" name="question_{{ q.id }}" value="B" {% if answer_map.get(q.id) and answer_map[q.id].selected_option == 'B' %}checked{% endif %}> <span>B. {{ q.option_b }}</span></label>
+            <label class="option"><input type="radio" name="question_{{ q.id }}" value="C" {% if answer_map.get(q.id) and answer_map[q.id].selected_option == 'C' %}checked{% endif %}> <span>C. {{ q.option_c }}</span></label>
+            <label class="option"><input type="radio" name="question_{{ q.id }}" value="D" {% if answer_map.get(q.id) and answer_map[q.id].selected_option == 'D' %}checked{% endif %}> <span>D. {{ q.option_d }}</span></label>
+        </fieldset>
+        {% endfor %}
+        {% if ordered_questions %}
+            <div class="exam-submit-row">
+                <button id="manual-submit" class="button quiz-submit" type="submit">Submit exam</button>
+            </div>
+        {% else %}
+            <div class="alert warning">This exam has no questions yet.</div>
+        {% endif %}
+    </div>
+    {% if ordered_questions %}
+    <aside class="question-navigator" aria-labelledby="question-navigator-heading">
+        <h2 id="question-navigator-heading">Questions</h2>
+        <p class="question-progress"><span id="answered-count">{{ answer_map|length }}</span> of {{ ordered_questions|length }} answered</p>
+        <p class="current-question" aria-live="polite">Currently viewing <strong id="current-question-number">1</strong> of {{ ordered_questions|length }}</p>
+        <div class="question-legend" aria-label="Question status">
+            <span><i class="legend-dot answered" aria-hidden="true"></i> Answered</span>
+            <span><i class="legend-dot unanswered" aria-hidden="true"></i> Not answered</span>
+        </div>
+        <nav class="question-nav-grid" aria-label="Jump to question">
+            {% for q in ordered_questions %}
+            {% set question_answered = answer_map.get(q.id) and answer_map[q.id].selected_option %}
+            <button class="question-nav-button {{ 'answered' if question_answered else 'unanswered' }}{% if loop.first %} current{% endif %}"
+                    type="button"
+                    data-question-index="{{ loop.index0 }}"
+                    aria-label="Question {{ loop.index }}: {{ 'answered' if question_answered else 'not answered' }}"{% if loop.first %} aria-current="step"{% endif %}>{{ loop.index }}</button>
+            {% endfor %}
+        </nav>
+    </aside>
+    {% endif %}
+</form>
+
+<script>
+const examForm = document.getElementById('exam-form');
+const questionSets = [...examForm.querySelectorAll('.question-set')];
+const questionNavButtons = [...document.querySelectorAll('.question-nav-button')];
+const countdownEl = document.getElementById('countdown');
+const timerBox = document.getElementById('timer-box');
+const remainingSeconds = {{ remaining_seconds|default(0) }};
+let timeLeft = remainingSeconds;
+const pendingAnswerSaves = new Set();
+let saveQueue = Promise.resolve();
+let timeoutSubmissionStarted = false;
+let submissionStarted = false;
+
+function updateQuestionNavigator() {
+  let answeredCount = 0;
+  questionSets.forEach((question, index) => {
+    const answered = Boolean(question.querySelector('input[type="radio"]:checked'));
+    const button = questionNavButtons[index];
+    if (answered) answeredCount += 1;
+    button.classList.toggle('answered', answered);
+    button.classList.toggle('unanswered', !answered);
+    button.setAttribute('aria-label', `Question ${index + 1}: ${answered ? 'answered' : 'not answered'}`);
+  });
+  document.getElementById('answered-count').textContent = answeredCount;
+}
+
+function setCurrentQuestion(index) {
+  if (!questionNavButtons.length || index < 0 || index >= questionNavButtons.length) return;
+  questionNavButtons.forEach((button, buttonIndex) => {
+    const isCurrent = buttonIndex === index;
+    button.classList.toggle('current', isCurrent);
+    if (isCurrent) button.setAttribute('aria-current', 'step');
+    else button.removeAttribute('aria-current');
+  });
+  document.getElementById('current-question-number').textContent = index + 1;
+}
+
+questionNavButtons.forEach((button, index) => {
+  button.addEventListener('click', () => {
+    questionSets[index].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setCurrentQuestion(index);
+  });
+});
+
+questionSets.forEach((question) => {
+  question.addEventListener('change', updateQuestionNavigator);
+});
+
+if ('IntersectionObserver' in window) {
+  const questionObserver = new IntersectionObserver((entries) => {
+    const visibleQuestions = entries
+      .filter((entry) => entry.isIntersecting)
+      .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    if (visibleQuestions.length) {
+      setCurrentQuestion(Number(visibleQuestions[0].target.dataset.questionIndex));
+    }
+  }, { rootMargin: '-15% 0px -65% 0px' });
+  questionSets.forEach((question) => questionObserver.observe(question));
+}
+
+function updateSaveStatus(message, state) {
+  const status = document.getElementById('autosave-status');
+  status.textContent = message;
+  status.dataset.state = state;
+}
+
+function formatTime(totalSeconds) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map(v => String(v).padStart(2, '0')).join(':');
+}
+
+function saveAnswer(radio) {
+  const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+  const params = new URLSearchParams({
+    question_id: radio.name.replace('question_', ''),
+    selected_option: radio.value
+  });
+  updateSaveStatus('Saving your answer…', 'saving');
+  const pending = saveQueue.then(() => fetch('{{ url_for("save_answer", exam_id=exam.id) }}', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': csrfToken },
+      body: params.toString()
+    })).then((response) => {
+      if (!response.ok && response.status !== 409) {
+        throw new Error('Could not save answer');
+      }
+    }).then(() => {
+      if (pendingAnswerSaves.size <= 1) updateSaveStatus('All changes saved', 'saved');
+    })
+    .finally(() => pendingAnswerSaves.delete(pending));
+  saveQueue = pending.catch(() => {});
+  pendingAnswerSaves.add(pending);
+  return pending;
+}
+
+async function submitExamAtTimeout() {
+  if (timeoutSubmissionStarted) return;
+  timeoutSubmissionStarted = true;
+  examForm.querySelectorAll('input[type="radio"], button[type="submit"]').forEach((element) => {
+    element.disabled = true;
+  });
+  const notice = document.createElement('div');
+  notice.className = 'alert warning';
+  notice.setAttribute('role', 'status');
+  notice.textContent = 'Time is up. Your exam is being submitted automatically.';
+  examForm.prepend(notice);
+  await Promise.allSettled([...pendingAnswerSaves]);
+
+  const retrySubmission = async () => {
+    try {
+      const response = await fetch(examForm.action, {
+        method: 'POST',
+        body: new FormData(examForm),
+        credentials: 'same-origin'
+      });
+      if (!response.ok) throw new Error('Submission could not be confirmed');
+      window.location.reload();
+    } catch (error) {
+      notice.textContent = 'Submission is waiting for a connection. Your saved answers are preserved; retrying...';
+      window.setTimeout(retrySubmission, 2000);
+    }
+  };
+  retrySubmission();
+}
+
+document.querySelectorAll('input[type="radio"]').forEach((radio) => {
+  radio.addEventListener('change', () => {
+    saveAnswer(radio).catch(() => {
+      updateSaveStatus('Could not save — check your connection', 'error');
+      const notice = document.getElementById('answer-save-error');
+      if (notice) return;
+      const alert = document.createElement('div');
+      alert.id = 'answer-save-error';
+      alert.className = 'alert danger';
+      alert.textContent = 'An answer could not be saved. Check your connection; your saved choices will be submitted when possible.';
+      examForm.prepend(alert);
+    });
+  });
+});
+
+examForm.addEventListener('submit', (event) => {
+  if (submissionStarted) return;
+  const unanswered = [...examForm.querySelectorAll('.question-set')].filter((question) =>
+    !question.querySelector('input[type="radio"]:checked')
+  ).length;
+  const message = unanswered
+    ? `Submit this exam now? ${unanswered} question${unanswered === 1 ? ' is' : 's are'} unanswered and will receive no marks.`
+    : 'Submit this exam now? You will not be able to change your answers.';
+  if (!timeoutSubmissionStarted && !window.confirm(message)) {
+    event.preventDefault();
+    return;
+  }
+  event.preventDefault();
+  submissionStarted = true;
+  timeoutSubmissionStarted = true;
+  clearInterval(timer);
+  const submitButton = examForm.querySelector('button[type="submit"]');
+  if (submitButton) submitButton.disabled = true;
+  updateSaveStatus('Submitting your exam…', 'saving');
+  HTMLFormElement.prototype.submit.call(examForm);
+});
+
+const timer = setInterval(() => {
+  if (timeLeft <= 0) {
+    clearInterval(timer);
+    timerBox.classList.add('danger');
+    countdownEl.textContent = '00:00:00';
+    submitExamAtTimeout();
+    return;
+  }
+  timeLeft -= 1;
+  countdownEl.textContent = formatTime(timeLeft);
+  if (timeLeft <= 300) {
+    timerBox.classList.add('warning');
+  }
+  if (timeLeft <= 60) {
+    timerBox.classList.add('critical');
+  }
+}, 1000);
+
+countdownEl.textContent = formatTime(timeLeft);
+</script>
+{% endblock %}

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#10233f">
+    <title>{% block title %}AetherExam | Assess with confidence{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<nav class="navbar" aria-label="Main navigation">
+    <a class="brand" href="{{ url_for('index') }}" aria-label="AetherExam home">
+        <span class="brand-mark" aria-hidden="true">
+            <svg width="25" height="25" viewBox="0 0 25 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4 4H21V21H4V4Z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M8 16.5L11 13.5L13 15L17.5 9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M14.5 9H17.5V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+        </span>
+        <span>AetherExam</span>
+        <span class="brand-tagline">Assess with confidence.</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-links">Menu</button>
+    <div class="nav-links" id="primary-links">
+        {% if session.get('user_id') %}
+            {% if session.get('role') == 'student' %}
+                <a href="{{ url_for('student_dashboard') }}" {% if request.endpoint in ['student_dashboard', 'student_result'] %}aria-current="page"{% endif %}>Dashboard</a>
+            {% else %}
+                <a href="{{ url_for('teacher_dashboard') }}" {% if request.endpoint in ['teacher_dashboard', 'create_exam', 'manage_exam', 'exam_results', 'teacher_attempt_review'] %}aria-current="page"{% endif %}>Exams</a>
+            {% endif %}
+            {% if request.endpoint == 'take_exam' %}
+                <span class="user-pill">Assessment in progress</span>
+            {% else %}
+                <span class="user-pill">{{ session.get('name') }} · {{ session.get('role')|title }}</span>
+                <a href="{{ url_for('account_settings') }}" {% if request.endpoint == 'account_settings' %}aria-current="page"{% endif %}>Account</a>
+                <a class="logout" href="{{ url_for('logout') }}">Log out</a>
+            {% endif %}
+        {% else %}
+            <a href="{{ url_for('login') }}" {% if request.endpoint == 'login' %}aria-current="page"{% endif %}>Log in</a>
+            <a class="button small" href="{{ url_for('register') }}">Create account</a>
+        {% endif %}
+    </div>
+</nav>
+
+<main class="container">
+    <div aria-live="polite" aria-atomic="true">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert {{ category }}" role="status">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    </div>
+    {% block content %}{% endblock %}
+</main>
+
+<footer>AetherExam <span aria-hidden="true">·</span> Assess with confidence.</footer>
+<script>
+const navToggle = document.querySelector('.nav-toggle');
+const navigation = document.querySelector('.navbar');
+if (navToggle && navigation) {
+  navToggle.addEventListener('click', () => {
+    const expanded = navToggle.getAttribute('aria-expanded') === 'true';
+    navToggle.setAttribute('aria-expanded', String(!expanded));
+    navigation.classList.toggle('nav-open', !expanded);
+  });
+}
+document.querySelectorAll('.password-toggle').forEach((toggle) => {
+  toggle.addEventListener('click', () => {
+    const password = document.getElementById(toggle.getAttribute('aria-controls'));
+    if (!password) return;
+    const isVisible = password.type === 'password';
+    password.type = isVisible ? 'text' : 'password';
+    toggle.textContent = isVisible ? 'Hide' : 'Show';
+    toggle.setAttribute('aria-label', isVisible ? 'Hide password' : 'Show password');
+    toggle.setAttribute('aria-pressed', String(isVisible));
+  });
+});
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

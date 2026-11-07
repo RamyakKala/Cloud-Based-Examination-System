@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Create account | AetherExam{% endblock %}
+{% block content %}
+<div class="auth-layout">
+    <section class="auth-intro">
+        <span class="eyebrow">AetherExam</span>
+        <h1>Start with the right workspace.</h1>
+        <p>Create a student account to take exams, or a teacher account to prepare and manage them.</p>
+    </section>
+    <section class="form-card auth-form" aria-labelledby="register-heading">
+        <h2 id="register-heading">Create your account</h2>
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="name">Full name</label>
+            <input id="name" name="name" required autocomplete="name">
+            <label for="email">Email address</label>
+            <input id="email" type="email" name="email" required autocomplete="email">
+            <label for="password">Password</label>
+            <div class="password-field">
+                <input id="password" type="password" name="password" minlength="6" required autocomplete="new-password">
+                <button class="password-toggle" type="button" aria-controls="password" aria-label="Show password" aria-pressed="false">Show</button>
+            </div>
+            <label for="role">Account type</label>
+            <select id="role" name="role" required>
+                <option value="student">Student</option>
+                <option value="teacher">Teacher</option>
+            </select>
+            <div id="student-class-fields">
+                <label for="branch">Branch</label>
+                <select id="branch" name="branch" required>
+                    <option value="">Select your branch</option>
+                    {% for branch_option in VIT_BRANCHES %}
+                    <option value="{{ branch_option }}">{{ branch_option }}</option>
+                    {% endfor %}
+                </select>
+                <label for="division">Division</label>
+                <select id="division" name="division" required>
+                    <option value="">Select your division</option>
+                    {% for division_option in DIVISIONS %}
+                    <option value="{{ division_option }}">{{ division_option }}</option>
+                    {% endfor %}
+                </select>
+                <p class="field-help">Select the branch and division shown in your VIT Pune academic records. Exam access is matched against these values.</p>
+            </div>
+            <button class="button full" type="submit">Create account</button>
+        </form>
+        <p class="auth-switch">Already registered? <a href="{{ url_for('login') }}">Log in</a></p>
+    </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const accountType = document.getElementById('role');
+const studentClassFields = document.getElementById('student-class-fields');
+const branchField = document.getElementById('branch');
+const divisionField = document.getElementById('division');
+function updateClassFields() {
+  const isStudent = accountType.value === 'student';
+  studentClassFields.hidden = !isStudent;
+  branchField.required = isStudent;
+  divisionField.required = isStudent;
+}
+accountType.addEventListener('change', updateClassFields);
+updateClassFields();
+</script>
+{% endblock %}

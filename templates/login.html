@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Log in | AetherExam{% endblock %}
+{% block body_class %}login-page{% endblock %}
+{% block content %}
+<div class="auth-layout">
+    <section class="auth-intro">
+        <span class="eyebrow">AetherExam</span>
+        <h1>Welcome back.</h1>
+        <p>Sign in to continue to your assessments and results.</p>
+    </section>
+    <section class="form-card auth-form" aria-labelledby="login-heading">
+        <h2 id="login-heading">Log in</h2>
+        <p class="small-copy">Use the email address associated with your account.</p>
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="email">Email address</label>
+            <input id="email" type="email" name="email" required autocomplete="email" placeholder="you@example.com">
+            <label for="password">Password</label>
+            <div class="password-field">
+                <input id="password" type="password" name="password" required autocomplete="current-password">
+                <button class="password-toggle" type="button" aria-controls="password" aria-label="Show password" aria-pressed="false">Show</button>
+            </div>
+            <button class="button full" type="submit">Log in</button>
+        </form>
+        <p class="auth-switch">New to AetherExam? <a href="{{ url_for('register') }}">Create an account</a></p>
+    </section>
+</div>
+{% endblock %}

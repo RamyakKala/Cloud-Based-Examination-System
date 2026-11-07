@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Account settings | AetherExam{% endblock %}
+{% block content %}
+<div class="page-head">
+    <span class="eyebrow">Profile</span>
+    <h1>Account settings</h1>
+    <p class="muted">Update your display name or change your password.</p>
+</div>
+<section class="form-card" aria-labelledby="account-details-heading">
+    <h2 id="account-details-heading">Account details</h2>
+    <p><strong>Account type:</strong> {{ user.role|title }}</p>
+    <p><strong>Email:</strong> {{ user.email }}</p>
+    <form method="POST" action="{{ url_for('account_settings') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="name">Name</label>
+        <input id="name" name="name" maxlength="120" value="{{ user.name }}" autocomplete="name" required>
+        {% if user.role == 'student' %}
+        <label for="branch">Branch</label>
+        <select id="branch" name="branch" required>
+            <option value="">Select your branch</option>
+            {% if user.branch and user.branch not in VIT_BRANCHES %}
+            <option value="{{ user.branch }}" selected>Current profile value: {{ user.branch }} (legacy)</option>
+            {% endif %}
+            {% for branch_option in VIT_BRANCHES %}
+            <option value="{{ branch_option }}" {{ 'selected' if user.branch == branch_option }}>{{ branch_option }}</option>
+            {% endfor %}
+        </select>
+        <label for="division">Division</label>
+        <select id="division" name="division" required>
+            <option value="">Select your division</option>
+            {% if user.division and user.division not in DIVISIONS %}
+            <option value="{{ user.division }}" selected>Current profile value: {{ user.division }} (legacy)</option>
+            {% endif %}
+            {% for division_option in DIVISIONS %}
+            <option value="{{ division_option }}" {{ 'selected' if user.division == division_option }}>{{ division_option }}</option>
+            {% endfor %}
+        </select>
+        <p class="field-help">Choose the branch and division shown in your VIT Pune academic records. They determine which class-targeted exams you can access.</p>
+        {% endif %}
+
+        <h3 class="settings-subheading">Change password <span class="small-copy">(optional)</span></h3>
+        <label for="current-password">Current password</label>
+        <input id="current-password" type="password" name="current_password" autocomplete="current-password">
+        <label for="new-password">New password</label>
+        <input id="new-password" type="password" name="new_password" minlength="8" autocomplete="new-password" aria-describedby="password-help">
+        <p id="password-help" class="field-help">Use at least 8 characters. Leave blank to keep your current password.</p>
+        <label for="confirm-password">Confirm new password</label>
+        <input id="confirm-password" type="password" name="confirm_password" minlength="8" autocomplete="new-password">
+        <button class="button" type="submit">Save settings</button>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,37 @@
+CLOUD-BASED ONLINE EXAMINATION SYSTEM
+
+Users
+  |
+  +--> Student Login --> Student Dashboard --> Take Exam --> Auto Evaluation --> Result
+  |
+  +--> Teacher Login --> Teacher Dashboard --> Create Exam --> Add MCQs --> Results
+
+Application Layer
+  Flask Web Application
+       |
+       +-- Authentication / Sessions
+       +-- Student Branch / Division Profiles
+       +-- Exam Management
+       +-- Exam Access Control by Branch / Division
+       +-- Per-Attempt Persisted Question Order
+       +-- Auto Evaluation
+       +-- Results and Question Analytics
+       +-- Student / Teacher Dashboards, Search, and Filters
+       +-- Account Settings and In-App Exam Reminders
+       |
+       v
+Cloud-Ready Relational Database
+  Local: SQLite
+  Cloud: PostgreSQL via DATABASE_URL
+
+Operations
+  Environment-based secrets and cookie settings
+  Console application logging
+  Automated unittest coverage
+  SQLite online backups / PostgreSQL pg_dump
+
+Cloud concepts:
+- SaaS: browser-based examination software
+- Cloud Database: managed relational DB in deployment
+- Authentication: hashed passwords + sessions
+- Cloud Deployment: Gunicorn + Procfile + environment variables

@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Student dashboard | AetherExam{% endblock %}
+{% block body_class %}dashboard-page student-dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+    <span class="eyebrow">Student workspace</span>
+    <h1>Your assessments</h1>
+    <p class="muted">Welcome, {{ session.get('name') }}. Class: {{ student.branch }} · Division {{ student.division }}. Continue an assessment or review a submitted result.</p>
+</div>
+
+<section class="grid four dashboard-cards" aria-label="Assessment overview">
+    <article class="card stat-card"><span>Upcoming exams</span><strong>{{ dashboard_counts.upcoming }}</strong></article>
+    <article class="card stat-card"><span>In progress</span><strong>{{ dashboard_counts.in_progress }}</strong></article>
+    <article class="card stat-card"><span>Completed exams</span><strong>{{ dashboard_counts.completed }}</strong></article>
+    <article class="card stat-card"><span>Pending results</span><strong>{{ dashboard_counts.pending_results }}</strong></article>
+</section>
+
+{% if reminders %}
+<section class="card dashboard-section reminder-card" aria-labelledby="reminders-heading">
+    <h2 id="reminders-heading">Starting within 24 hours</h2>
+    <p class="muted">Keep these scheduled assessments on your radar.</p>
+    {% for exam in reminders %}
+    <article class="list-item">
+        <div>
+            <h3>{{ exam.title }}</h3>
+            <p class="small-copy">Opens {{ exam.start_at.astimezone(IST).strftime('%d %b %Y, %H:%M IST') }}</p>
+        </div>
+        <span class="status warning">Reminder</span>
+    </article>
+    {% endfor %}
+</section>
+{% endif %}
+
+{% if active_attempts %}
+<section class="card dashboard-section" aria-labelledby="in-progress-heading">
+    <h2 id="in-progress-heading">In progress</h2>
+    {% for attempt in active_attempts %}
+    <div class="list-item">
+        <div>
+            <h3>{{ attempt.exam.title }}</h3>
+            <p class="small-copy">{{ attempt.exam.questions|length }} questions · {{ attempt.exam.duration_minutes or 0 }} minutes</p>
+        </div>
+        <a class="button" href="{{ url_for('take_exam', exam_id=attempt.exam_id) }}">Resume exam</a>
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+{% if pending_result_attempts %}
+<section class="card dashboard-section" aria-labelledby="pending-results-heading">
+    <h2 id="pending-results-heading">Results awaiting finalization</h2>
+    {% for attempt in pending_result_attempts %}
+    <article class="list-item">
+        <div><h3>{{ attempt.exam.title }}</h3><p class="small-copy">Your saved answers are ready to be scored.</p></div>
+        <a class="button secondary" href="{{ url_for('student_result', attempt_id=attempt.id) }}">View result</a>
+    </article>
+    {% endfor %}
+</section>
+{% endif %}
+
+<section class="card dashboard-section" aria-labelledby="exam-list-heading">
+    <h2 id="exam-list-heading">Exams <span class="small-copy">({{ exams|length }} shown)</span></h2>
+    <form class="filter-form" method="GET" action="{{ url_for('student_dashboard') }}">
+        <div>
+            <label for="exam-search">Search by title</label>
+            <input id="exam-search" type="search" name="q" value="{{ search }}" placeholder="Find an exam">
+        </div>
+        <div>
+            <label for="exam-status">Filter by status</label>
+            <select id="exam-status" name="status">
+                <option value="all" {{ 'selected' if status_filter == 'all' }}>All statuses</option>
+                <option value="upcoming" {{ 'selected' if status_filter == 'upcoming' }}>Upcoming</option>
+                <option value="available" {{ 'selected' if status_filter == 'available' }}>Available</option>
+                <option value="in_progress" {{ 'selected' if status_filter == 'in_progress' }}>In progress</option>
+                <option value="completed" {{ 'selected' if status_filter == 'completed' }}>Completed</option>
+                <option value="closed" {{ 'selected' if status_filter == 'closed' }}>Closed</option>
+            </select>
+        </div>
+        <button class="button secondary" type="submit">Apply filters</button>
+        {% if search or status_filter != 'all' %}<a class="button secondary" href="{{ url_for('student_dashboard') }}">Clear</a>{% endif %}
+    </form>
+    {% if exams %}
+        {% for exam in exams %}
+        {% set status = exam_status_map.get(exam.id, 'available') %}
+        <article class="list-item">
+            <div>
+                <h3>{{ exam.title }}</h3>
+                {% if exam.target_branch and exam.target_division %}<p class="small-copy">Assigned to {{ exam.target_branch }} · Division {{ exam.target_division }}</p>{% endif %}
+                {% if exam.description %}<p class="muted">{{ exam.description }}</p>{% endif %}
+                <p class="small-copy">{{ exam.questions|length }} questions · {{ exam.duration_minutes or 0 }} minutes
+                    {% if exam.start_at %} · Starts {{ exam.start_at.astimezone(IST).strftime('%d %b, %H:%M IST') }}{% endif %}
+                    {% if exam.end_at %} · Ends {{ exam.end_at.astimezone(IST).strftime('%d %b, %H:%M IST') }}{% endif %}
+                </p>
+            </div>
+            <div class="exam-action">
+                {% if exam.id in attempt_exam_ids %}
+                    <span class="status done">Completed</span>
+                {% elif exam.id in active_attempt_exam_ids %}
+                    <a class="button" href="{{ url_for('take_exam', exam_id=exam.id) }}">Resume</a>
+                {% elif status == 'upcoming' %}
+                    <span class="status warning">Upcoming</span>
+                {% elif status == 'closed' %}
+                    <span class="status closed">Closed</span>
+                {% elif not exam.questions %}
+                    <span class="status warning">Not ready</span>
+                {% else %}
+                    <a class="button" href="{{ url_for('take_exam', exam_id=exam.id) }}">Start exam</a>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    {% elif all_exams %}
+        <div class="empty-state"><h3>No matching exams</h3><p class="muted">Try another title or status filter.</p></div>
+    {% else %}
+        <div class="empty-state"><h3>No exams available yet</h3><p class="muted">Your teacher’s assessments will appear here with their schedules and start times.</p></div>
+    {% endif %}
+</section>
+
+<section class="card dashboard-section" aria-labelledby="history-heading">
+    <h2 id="history-heading">Recent results</h2>
+    {% if attempts %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Exam</th><th>Score</th><th>Percentage</th><th>Submitted</th><th></th></tr></thead>
+                <tbody>
+                {% for attempt in attempts %}
+                    <tr>
+                        <td>{{ attempt.exam.title }}</td>
+                        <td><strong>{{ attempt.score }}/{{ attempt.total }}</strong></td>
+                        <td>{{ ((attempt.score / attempt.total) * 100)|round(0)|int if attempt.total else 0 }}%</td>
+                        <td>{{ attempt.submitted_at.astimezone(IST).strftime('%d %b %Y, %H:%M IST') if attempt.submitted_at else '—' }}</td>
+                        <td><a class="button secondary small" href="{{ url_for('student_result', attempt_id=attempt.id) }}">Review</a></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="field-help">Only currently retained results are shown. Reset results are not kept as history.</p>
+    {% else %}
+        <div class="empty-state"><h3>No results yet</h3><p class="muted">After you submit an exam, your score and answer review will be available here.</p></div>
+    {% endif %}
+</section>
+{% endblock %}

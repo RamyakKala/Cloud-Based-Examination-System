@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Attempt review | AetherExam{% endblock %}
+{% block content %}
+<div class="page-head split">
+    <div>
+        <span class="eyebrow">Attempt review</span>
+        <h1>{{ exam.title }}</h1>
+        <p class="muted">Student: {{ student.name }} ({{ student.email }})</p>
+    </div>
+    <a class="button secondary" href="{{ url_for('exam_results', exam_id=exam.id) }}">Back to Results</a>
+</div>
+
+<div class="card">
+    <div class="score-summary">
+        <strong>{{ attempt.score }}/{{ attempt.total }}</strong>
+        <span>{{ ((attempt.score / attempt.total) * 100)|round(0)|int if attempt.total else 0 }}%</span>
+    </div>
+
+    {% for question in ordered_questions %}
+    {% set answer = answer_map.get(question.id) %}
+    <div class="question-card review">
+        <h3>Q{{ loop.index }}. {{ question.text }}</h3>
+        <div class="option-list">
+            {% for option, value in [('A', question.option_a), ('B', question.option_b), ('C', question.option_c), ('D', question.option_d)] %}
+            {% set is_correct = question.correct_option == option %}
+            {% set is_selected = answer and answer.selected_option == option %}
+            <div class="review-option {% if is_correct %}correct{% endif %} {% if is_selected and not is_correct %}selected{% endif %}">
+                <span>{{ option }}. {{ value }}</span>
+                {% if is_selected %}<span class="tiny-tag">Selected</span>{% endif %}
+                {% if is_correct %}<span class="tiny-tag success">Correct</span>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% if not answer or not answer.selected_option %}
+        <p class="muted">Student response: Unanswered.</p>
+        {% elif answer.is_correct %}
+        <p class="muted">Student response was correct.</p>
+        {% else %}
+        <p class="muted">Student response was incorrect.</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

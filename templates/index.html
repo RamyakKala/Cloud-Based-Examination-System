@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}AetherExam | Assess with confidence{% endblock %}
+{% block content %}
+<section class="hero">
+    <div>
+        <span class="eyebrow">A considered approach to assessment</span>
+        <h1>Assess with confidence.</h1>
+        <p>A secure, straightforward examination experience for educators and students, from creating an assessment to reviewing results.</p>
+        <div class="actions">
+            <a class="button" href="{{ url_for('login') }}">Log in</a>
+            <a class="button secondary" href="{{ url_for('register') }}">Create an account</a>
+        </div>
+    </div>
+    <aside class="hero-note" aria-label="Platform capabilities">
+        <h2>Built for focused assessment</h2>
+        <p class="muted">Scheduled examinations, reliable answer saving, automatic evaluation, and clear result review—in one calm workspace.</p>
+    </aside>
+</section>
+<section class="grid three" aria-label="Platform roles">
+    <article class="card"><h2>For students</h2><p class="muted">See scheduled assessments, complete exams, and review submitted results.</p></article>
+    <article class="card"><h2>For educators</h2><p class="muted">Prepare questions, manage exam schedules, and review student outcomes.</p></article>
+    <article class="card"><h2>Reliable by design</h2><p class="muted">Answer persistence and server-side evaluation support a dependable exam flow.</p></article>
+</section>
+{% endblock %}

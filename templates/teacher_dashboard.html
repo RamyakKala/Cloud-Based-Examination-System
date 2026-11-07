@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Exams | AetherExam{% endblock %}
+{% block body_class %}dashboard-page teacher-dashboard{% endblock %}
+{% block content %}
+<div class="page-head split">
+    <div>
+        <span class="eyebrow">Teacher workspace</span>
+        <h1>Exams</h1>
+        <p class="muted">Prepare assessments, manage schedules, and review results.</p>
+    </div>
+    <a class="button" href="{{ url_for('create_exam') }}">Create exam</a>
+</div>
+
+<section class="grid four dashboard-cards" aria-label="Exam overview">
+    <article class="card stat-card"><span>Upcoming exams</span><strong>{{ dashboard_counts.upcoming }}</strong></article>
+    <article class="card stat-card"><span>Exams in progress</span><strong>{{ dashboard_counts.in_progress }}</strong></article>
+    <article class="card stat-card"><span>Completed exams</span><strong>{{ dashboard_counts.completed }}</strong></article>
+    <article class="card stat-card"><span>Pending results</span><strong>{{ dashboard_counts.pending_results }}</strong></article>
+</section>
+
+<section class="card dashboard-section" aria-labelledby="exam-list-heading">
+    <h2 id="exam-list-heading">Your assessments <span class="small-copy">({{ exams|length }} shown)</span></h2>
+    <form class="filter-form" method="GET" action="{{ url_for('teacher_dashboard') }}">
+        <div>
+            <label for="exam-search">Search by title</label>
+            <input id="exam-search" type="search" name="q" value="{{ search }}" placeholder="Find an exam">
+        </div>
+        <div>
+            <label for="exam-status">Filter by status</label>
+            <select id="exam-status" name="status">
+                <option value="all" {{ 'selected' if status_filter == 'all' }}>All statuses</option>
+                <option value="upcoming" {{ 'selected' if status_filter == 'upcoming' }}>Upcoming</option>
+                <option value="available" {{ 'selected' if status_filter == 'available' }}>Available</option>
+                <option value="closed" {{ 'selected' if status_filter == 'closed' }}>Closed</option>
+                <option value="unscheduled" {{ 'selected' if status_filter == 'unscheduled' }}>Unscheduled</option>
+            </select>
+        </div>
+        <button class="button secondary" type="submit">Apply filters</button>
+        {% if search or status_filter != 'all' %}<a class="button secondary" href="{{ url_for('teacher_dashboard') }}">Clear</a>{% endif %}
+    </form>
+
+    {% if exams %}
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Exam</th><th>Class</th><th>Status</th><th>Questions</th><th>Duration</th><th>Schedule (IST)</th><th>Actions</th></tr></thead>
+            <tbody>
+            {% for exam in exams %}
+                <tr>
+                    <td><strong>{{ exam.title }}</strong>{% if exam.description %}<br><span class="small-copy">{{ exam.description }}</span>{% endif %}</td>
+                    <td>{{ exam.target_branch or 'All students' }}{% if exam.target_division %}<br><span class="small-copy">Division {{ exam.target_division }}</span>{% endif %}</td>
+                    <td><span class="status {{ 'warning' if exam_status_map.get(exam.id) == 'upcoming' else 'closed' if exam_status_map.get(exam.id) == 'closed' else 'done' }}">{{ exam_status_map.get(exam.id, 'available')|title }}</span></td>
+                    <td>{{ exam.questions|length }}</td>
+                    <td>{{ exam.duration_minutes or 0 }} min</td>
+                    <td>
+                        {% if exam.start_at or exam.end_at %}
+                            <span>{{ exam.start_at.astimezone(IST).strftime('%d %b %Y, %H:%M') if exam.start_at else 'No start' }}</span>
+                            <br><span class="small-copy">to {{ exam.end_at.astimezone(IST).strftime('%d %b %Y, %H:%M') if exam.end_at else 'No end' }}</span>
+                        {% else %}
+                            <span class="small-copy">Not scheduled</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="inline-actions">
+                            <a class="button secondary small" href="{{ url_for('manage_exam', exam_id=exam.id) }}">Manage</a>
+                            <a class="button secondary small" href="{{ url_for('exam_results', exam_id=exam.id) }}">Results</a>
+                            <form method="POST" action="{{ url_for('delete_exam', exam_id=exam.id) }}" onsubmit="return confirm('Delete this exam and its questions, attempts, and answers? This cannot be undone.')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="button danger small" type="submit">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% elif all_exams %}
+    <div class="empty-state"><h3>No matching exams</h3><p class="muted">Try another title or status filter.</p></div>
+    {% else %}
+    <div class="empty-state"><h3>No exams yet</h3><p class="muted">Create your first exam, add questions, and set a schedule when you’re ready.</p><a class="button" href="{{ url_for('create_exam') }}">Create your first exam</a></div>
+    {% endif %}
+</section>
+{% endblock %}

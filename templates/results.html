@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Results | AetherExam{% endblock %}
+{% block content %}
+<div class="page-head split">
+    <div>
+        <span class="eyebrow">Teacher workspace · Results</span>
+        <h1>{{ exam.title }}</h1>
+        <p class="small-copy">Assigned to {{ exam.target_branch or 'all students' }}{% if exam.target_division %} · Division {{ exam.target_division }}{% endif %}</p>
+        <p class="muted">Participation and score insights for this exam. Reset results replace prior attempts and are not retained as history.</p>
+    </div>
+    <form method="POST" action="{{ url_for('reset_attempt_for_exam', exam_id=exam.id) }}" onsubmit="return confirm('Reset all attempts for this exam? All current results and answers will be deleted so students can take it again. This cannot be undone.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="button danger" type="submit">Reset all attempts</button>
+    </form>
+</div>
+<section class="grid three analytics-cards" aria-label="Exam analytics">
+    <article class="card stat-card"><span>Participation</span><strong>{{ participant_count }}/{{ student_count }}</strong><p class="small-copy">{{ participation_rate }}% of registered students have attempted this exam.</p></article>
+    <article class="card stat-card"><span>Submitted attempts</span><strong>{{ submitted_attempts|length }}</strong><p class="small-copy">Completed and automatically scored.</p></article>
+    <article class="card stat-card"><span>Average score</span><strong>{{ average_score }}%</strong><p class="small-copy">Mean percentage across scored attempts.</p></article>
+</section>
+<section class="card dashboard-section" aria-labelledby="question-performance-heading">
+    <h2 id="question-performance-heading">Question performance</h2>
+    {% if exam.questions %}
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Question</th><th>Answered</th><th>Correct</th><th>Correct rate</th></tr></thead>
+            <tbody>
+            {% for question in exam.questions %}
+                {% set stats = question_performance.get(question.id) %}
+                <tr>
+                    <td>{{ loop.index }}. {{ question.text }}</td>
+                    <td>{{ stats.answered }}</td>
+                    <td>{{ stats.correct }}</td>
+                    <td>
+                        <div class="performance-cell"><progress max="100" value="{{ stats.rate }}">{{ stats.rate }}%</progress><span>{{ stats.rate }}%</span></div>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state"><h3>No questions to analyze</h3><p class="muted">Add questions to this exam to see question-level performance.</p></div>
+    {% endif %}
+</section>
+<section class="card dashboard-section" aria-labelledby="attempts-heading">
+    <h2 id="attempts-heading">Student attempts</h2>
+    {% if attempts %}
+<div class="table-wrap">
+<table>
+    <thead><tr><th>Student</th><th>Email</th><th>Score</th><th>Percentage</th><th>Submitted</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for a in attempts %}
+        {% set student = students.get(a.student_id) %}
+        <tr>
+            <td>{{ student.name if student else 'Unknown' }}</td>
+            <td>{{ student.email if student else '-' }}</td>
+            <td><strong>{{ a.score }}/{{ a.total }}</strong></td>
+            <td>{{ ((a.score / a.total) * 100)|round(0)|int if a.total else 0 }}%</td>
+            <td>{{ a.submitted_at.astimezone(IST).strftime('%d %b %Y, %H:%M IST') if a.submitted_at else '—' }}</td>
+            <td>
+                <div class="inline-actions">
+                    <a class="button secondary small" href="{{ url_for('teacher_attempt_review', exam_id=exam.id, attempt_id=a.id) }}">Review</a>
+                    <form method="POST" action="{{ url_for('reset_attempt_for_exam', exam_id=exam.id) }}" onsubmit="return confirm('Reset this student’s attempt? Their current score and answers will be deleted so they can take the exam again.')">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="student_id" value="{{ a.student_id }}">
+                        <button class="button danger small" type="submit">Reset</button>
+                    </form>
+                </div>
+            </td>
+        </tr>
+    {% else %}
+        <tr><td colspan="6" class="muted">No attempts yet.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+    {% else %}
+    <div class="empty-state"><h3>No participation yet</h3><p class="muted">Student attempts and scores will appear here after the exam begins.</p></div>
+    {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Result | AetherExam{% endblock %}
+{% block content %}
+<div class="result-card">
+    <div class="result-icon" aria-hidden="true">✓</div>
+    <span class="eyebrow">{{ 'Automatically submitted' if timed_out else 'Exam submitted' }}</span>
+    <h1>{{ exam.title }}</h1>
+    <div class="score">{{ score }} / {{ total }}</div>
+    <p class="percentage">{{ ((score / total) * 100)|round(0)|int if total else 0 }}%</p>
+    {% if timed_out %}
+    <p class="alert warning" role="status">Time is up. Your exam was automatically submitted and evaluated.</p>
+    {% else %}
+    <p class="muted">Your answers were evaluated and your result has been recorded.</p>
+    {% endif %}
+    <p class="muted">Submission status: {{ 'Automatically submitted' if timed_out else 'Submitted' }}{% if submitted_at %} · {{ submitted_at.astimezone(IST).strftime('%d %b %Y, %H:%M IST') }}{% endif %}</p>
+    <a class="button" href="{{ url_for('student_dashboard') }}">Return to dashboard</a>
+</div>
+{% endblock %}

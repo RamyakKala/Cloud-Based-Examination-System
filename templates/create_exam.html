@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Create exam | AetherExam{% endblock %}
+{% block content %}
+<div class="page-head">
+    <span class="eyebrow">Teacher workspace</span>
+    <h1>Create an exam</h1>
+    <p class="muted">Set the assessment details and schedule. You can add questions after creating it.</p>
+</div>
+<section class="form-card">
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="title">Exam title <span aria-label="required">*</span></label>
+        <input id="title" name="title" required maxlength="200" placeholder="For example, Biology — Unit 1">
+        <label for="description">Description <span class="small-copy">(optional)</span></label>
+        <textarea id="description" name="description" rows="3" placeholder="Add instructions or context for students"></textarea>
+        <div class="grid two">
+            <div>
+                <label for="target_branch">Assigned branch</label>
+                <select id="target_branch" name="target_branch" required>
+                    <option value="">Select a branch</option>
+                    {% for branch_option in VIT_BRANCHES %}
+                    <option value="{{ branch_option }}">{{ branch_option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="target_division">Assigned division</label>
+                <select id="target_division" name="target_division" required>
+                    <option value="">Select a division</option>
+                    {% for division_option in DIVISIONS %}
+                    <option value="{{ division_option }}">{{ division_option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <p class="field-help">Only students in the selected branch and division can see or access this exam.</p>
+        <label for="duration_minutes">Duration in minutes <span aria-label="required">*</span></label>
+        <input id="duration_minutes" type="number" name="duration_minutes" min="1" value="30" required>
+        <p class="field-help">A student’s timer begins when they start the exam.</p>
+        <label for="start_at">Scheduled start <span class="small-copy">(optional, IST)</span></label>
+        <input id="start_at" type="datetime-local" name="start_at">
+        <label for="end_at">Scheduled end <span class="small-copy">(optional, IST)</span></label>
+        <input id="end_at" type="datetime-local" name="end_at">
+        <p class="field-help">Students cannot start before the start time; the earlier of the duration and end time is the deadline.</p>
+        <div class="actions">
+            <button class="button" type="submit">Create exam</button>
+            <a class="button secondary" href="{{ url_for('teacher_dashboard') }}">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

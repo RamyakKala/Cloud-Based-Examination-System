@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Manage {{ exam.title }} | AetherExam{% endblock %}
+{% block content %}
+<div class="page-head split">
+    <div>
+        <span class="eyebrow">Exam management</span>
+        <h1>{{ exam.title }}</h1>
+        {% if exam.description %}<p class="muted">{{ exam.description }}</p>{% endif %}
+    </div>
+    <a class="button secondary" href="{{ url_for('exam_results', exam_id=exam.id) }}">View results</a>
+</div>
+
+<section class="card" aria-labelledby="schedule-heading">
+    <h2 id="schedule-heading">Class, schedule, and duration</h2>
+    <form method="POST" action="{{ url_for('update_exam_schedule', exam_id=exam.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="grid two">
+            <div>
+                <label for="target_branch">Assigned branch</label>
+                <select id="target_branch" name="target_branch" required>
+                    <option value="">Select a branch</option>
+                    {% if exam.target_branch and exam.target_branch not in VIT_BRANCHES %}
+                    <option value="{{ exam.target_branch }}" selected>Current exam value: {{ exam.target_branch }} (legacy)</option>
+                    {% endif %}
+                    {% for branch_option in VIT_BRANCHES %}
+                    <option value="{{ branch_option }}" {{ 'selected' if exam.target_branch == branch_option }}>{{ branch_option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="target_division">Assigned division</label>
+                <select id="target_division" name="target_division" required>
+                    <option value="">Select a division</option>
+                    {% if exam.target_division and exam.target_division not in DIVISIONS %}
+                    <option value="{{ exam.target_division }}" selected>Current exam value: {{ exam.target_division }} (legacy)</option>
+                    {% endif %}
+                    {% for division_option in DIVISIONS %}
+                    <option value="{{ division_option }}" {{ 'selected' if exam.target_division == division_option }}>{{ division_option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="duration_minutes">Duration in minutes</label>
+                <input id="duration_minutes" type="number" name="duration_minutes" min="1" value="{{ exam.duration_minutes or 30 }}" required>
+            </div>
+            <div>
+                <label for="start_at">Scheduled start <span class="small-copy">(optional, IST)</span></label>
+                <input id="start_at" type="datetime-local" name="start_at" value="{{ exam.start_at.astimezone(IST).strftime('%Y-%m-%dT%H:%M') if exam.start_at else '' }}">
+            </div>
+            <div>
+                <label for="end_at">Scheduled end <span class="small-copy">(optional, IST)</span></label>
+                <input id="end_at" type="datetime-local" name="end_at" value="{{ exam.end_at.astimezone(IST).strftime('%Y-%m-%dT%H:%M') if exam.end_at else '' }}">
+            </div>
+        </div>
+        <p class="field-help">Only students matching both selections can access this exam.</p>
+        <p class="field-help">The exam closes at whichever comes first: the duration limit or the scheduled end time.</p>
+        <button class="button" type="submit">Save schedule</button>
+    </form>
+</section>
+
+<div class="grid two section-gap">
+    <section class="card" aria-labelledby="questions-heading">
+        <h2 id="questions-heading">Questions <span class="small-copy">({{ exam.questions|length }})</span></h2>
+        {% for q in exam.questions %}
+        <article class="list-item vertical">
+            <strong>Question {{ loop.index }} · {{ q.text }}</strong>
+            <div class="small-copy">A. {{ q.option_a }} · B. {{ q.option_b }} · C. {{ q.option_c }} · D. {{ q.option_d }}</div>
+            <span class="status done">Correct option: {{ q.correct_option }}</span>
+        </article>
+        {% else %}
+        <p class="muted">No questions have been added. Add a question or import a prepared file.</p>
+        {% endfor %}
+    </section>
+
+    <section class="card" aria-labelledby="add-question-heading">
+        <h2 id="add-question-heading">Add a question</h2>
+        <form method="POST" action="{{ url_for('add_question', exam_id=exam.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="question-text">Question</label>
+            <textarea id="question-text" name="text" rows="3" required></textarea>
+            <div class="grid two">
+                <div><label for="option-a">Option A</label><input id="option-a" name="option_a" required></div>
+                <div><label for="option-b">Option B</label><input id="option-b" name="option_b" required></div>
+                <div><label for="option-c">Option C</label><input id="option-c" name="option_c" required></div>
+                <div><label for="option-d">Option D</label><input id="option-d" name="option_d" required></div>
+            </div>
+            <label for="correct-option">Correct option</label>
+            <select id="correct-option" name="correct_option" required>
+                <option value="A">A</option><option value="B">B</option>
+                <option value="C">C</option><option value="D">D</option>
+            </select>
+            <button class="button" type="submit">Add question</button>
+        </form>
+    </section>
+</div>
+
+<section class="card section-gap" aria-labelledby="import-heading">
+    <h2 id="import-heading">Import questions</h2>
+    <p class="muted">Upload a CSV or Excel workbook (.xlsx). Required headers: <code>question, option_a, option_b, option_c, option_d, correct_option</code>.</p>
+    <div class="actions">
+        <a class="button secondary small" href="{{ url_for('exam_import_template', exam_id=exam.id, file_type='csv') }}">Download CSV template</a>
+        <a class="button secondary small" href="{{ url_for('exam_import_template', exam_id=exam.id, file_type='xlsx') }}">Download Excel template</a>
+    </div>
+    <form id="import-form" method="POST" action="{{ url_for('import_questions', exam_id=exam.id) }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="question-file">Question file</label>
+        <input id="question-file" type="file" name="question_file" accept=".csv,.xlsx" required aria-describedby="file-help selected-file">
+        <p id="file-help" class="field-help">Maximum file size: 2 MB. Correct option must be A, B, C, or D.</p>
+        <p id="selected-file" class="small-copy" aria-live="polite">No file selected.</p>
+        <button class="button" type="submit">Validate and preview</button>
+    </form>
+    {% if preview %}
+    <div class="preview-box">
+        <h3>Import preview · {{ preview.rows|length }} questions</h3>
+        <ul>
+            {% for row in preview.rows[:5] %}
+            <li>{{ row.question[:120] }}{% if row.question|length > 120 %}…{% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% if preview.rows|length > 5 %}<p class="small-copy">Showing the first 5 questions.</p>{% endif %}
+        <form method="POST" action="{{ url_for('confirm_import', exam_id=exam.id) }}" onsubmit="this.querySelector('button').disabled=true">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="button" type="submit">Confirm import of {{ preview.rows|length }} questions</button>
+        </form>
+    </div>
+    {% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+const questionFileInput = document.getElementById('question-file');
+if (questionFileInput) {
+  questionFileInput.addEventListener('change', () => {
+    const file = questionFileInput.files[0];
+    document.getElementById('selected-file').textContent = file
+      ? `${file.name} · ${(file.size / 1024).toFixed(1)} KB`
+      : 'No file selected.';
+  });
+}
+const importForm = document.getElementById('import-form');
+if (importForm) {
+  importForm.addEventListener('submit', () => {
+    const button = importForm.querySelector('button[type="submit"]');
+    button.disabled = true;
+    button.textContent = 'Validating…';
+  });
+}
+</script>
+{% endblock %}
